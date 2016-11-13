@@ -1,0 +1,112 @@
+﻿############################################################################
+#mediaDinamica.asm
+#
+#DESC: Aloca dinamicamente N words na memoria e em seguida le N numeros.
+# por fim calcula a media de N
+#
+#DDA 20.09.2016
+############################################################################
+
+.data
+
+str1: .asciiz "Digite o numero de numeros a serem lidos: \n"
+str2: .asciiz "A media eh: \n"
+str3: .asciiz "Digite o prox num: \n"
+
+.text
+
+#lÃª o numero N de numeros a serem lidos
+        li      $v0, 4            #cod imprime string
+        la      $a0, str1         #end da string
+        syscall                   #executa servico
+        
+        li      $v0, 5            #cod le inteiro
+        syscall                   #executa servico
+        add     $a0, $v0, $zero   #move v0 para a0
+#alocar dinamicamente espaÃ§o para N words 
+        add     $s0, $v0, $zero   #salva N em S0 
+        li      $v0, 9            #cod aloc dinamica
+        sll     $a0, $a0, 2       #mult o num por 4
+        syscall
+        add     $s1, $v0, $zero   #salva o end da 1a pos da mem alocada em s1
+
+        #TODO: testar se a memoria foi mesmo alocada 
+           
+#chamar uma funcao que le N numeros e calcula a media 
+	add     $a0, $s0, $zero   # arg0 - N 
+	add     $a1, $s1, $zero   # arg1 - ponteiro para a 1a pos da mem
+	jal     leECalcula
+
+#reportar o resultado
+        add     $s2, $v0, $zero   # move o ret da funcao para s2  
+        li      $v0, 4            #cod imprime string
+        la      $a0, str2         #end da string
+        syscall                   #executa servico
+        
+        li      $v0, 1            #cod do servico
+        add     $a0, $s2, $zero   #inteiro a ser impresso
+        syscall
+        
+#terminar o programa
+        li      $v0, 10
+        syscall
+
+leECalcula:
+        #salva dados na pilha
+        sw     $a0, 0($sp)          # N
+        sw     $a1, 4($sp)          # end da memoria alocada 
+        sw     $s0, 8($sp)          # end da memoria alocada 
+        sw     $s1, 12($sp)          # end da memoria alocada 
+        
+        addi   $sp, $sp, -16 
+        #-------------------------- 
+        #le N inteiros
+        add    $s0, $zero, $zero    #s0 = contador (c)
+        add    $s1, $a1, $zero      #copia de a1 em s1 (1o end. da memoria)
+FOR1:   slt    $t0, $s0, $a0
+        beq    $t0, $zero, SAI1
+        #---------------------
+        add    $t7, $a0, $zero
+        li      $v0, 4            #cod imprime string
+        la      $a0, str3         #end da string
+        syscall                   #executa servico
+        
+        li     $v0, 5        
+        syscall
+        
+        sw     $v0, 0($s1)         #salva o numero lido na prox. pos livre da mem.
+        
+        addi   $s1, $s1, 4         #ponteiro++
+        #---------------------                        
+        addi    $s0, $s0, 1
+        add    $a0, $t7, $zero
+        j       FOR1
+        #--------------------------
+        #valor de retorno
+
+SAI1:   add    $s0, $zero, $zero    #s0 = contador (c)
+        add    $s1, $a1, $zero      #copia de a1 em s1 (1o end. da memoria)
+        add    $v0, $zero, $zero    # return = 0
+FOR2:   slt    $t0, $s0, $a0
+        beq    $t0, $zero, SAI2                
+        #---------------------
+        
+        lw     $s2, 0($s1)         #salva o numero lido na prox. pos livre da mem.
+        add    $v0, $v0, $s2       #acumula os vals do array no v0 
+        
+        addi   $s1, $s1, 4         #ponteiro++
+        #---------------------                        
+        addi   $s0, $s0, 1
+        j      FOR2
+        #--------------------------
+SAI2:   div    $v0, $a0
+        mflo   $v0
+        mfhi   $v1  
+        #restaura dados da pilha
+        lw     $a0, 0($sp)
+        lw     $a1, 4($sp)
+        lw     $s0, 8($sp)
+        lw     $s1, 12($sp)
+        addi   $sp, $sp, 16 
+
+        jr      $ra      
